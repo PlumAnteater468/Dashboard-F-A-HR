@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finance & HR Q4 2026 Dashboard</title>
+<style>
+:root{--bg:#f4f7fa;--card:#fff;--tx:#182431;--mu:#667788;--bd:#dce5ec;--ac:#1f6f8b;--ok:#22a699;--navy:#112b45;--gold:#f2b84b}
+@media (prefers-color-scheme:dark){:root{--bg:#12161c;--card:#1b222b;--tx:#e8ecf1;--mu:#93a0af;--bd:#2c3642;--ac:#60a5fa;--ok:#4ade80}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 "Segoe UI",Arial,sans-serif}
+button,input{font:inherit}
+header{background:linear-gradient(125deg,var(--navy),#174b68);color:#fff;padding:26px clamp(18px,4vw,54px) 34px}
+.top{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:center}
+h1{margin:0;font-size:clamp(22px,3vw,34px)}header p{margin:4px 0 0;color:#d9e8f1}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+button,.btn{border:0;border-radius:8px;padding:9px 13px;cursor:pointer;font-weight:650}
+.primary{background:var(--ok);color:#fff}.ghost{background:#ffffff1c;color:#fff;border:1px solid #ffffff44}
+.light{background:#edf3f7;color:var(--navy)}
+main{max-width:1100px;margin:-18px auto 40px;padding:0 20px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;box-shadow:0 4px 15px #17334d0b}
+.statusbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;padding:10px 14px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--gold)}.dot.live{background:var(--ok)}
+#sourceText{flex:1;color:var(--mu)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
+.kpi b{display:block;font-size:26px;color:var(--ac)}.kpi span{color:var(--mu);font-size:13px}
+.bar{height:8px;background:var(--bd);border-radius:4px;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:var(--ok)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tabs button{border:1px solid var(--bd);background:transparent;color:var(--tx);border-radius:20px;font-weight:400}
+.tabs button.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.task{display:grid;grid-template-columns:minmax(180px,1.3fr) 90px 3fr;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--bd)}
+.task:first-child{border-top:0}
+.chip{font-size:12px;color:var(--mu);border:1px solid var(--bd);border-radius:10px;padding:1px 8px;text-align:center}
+.cells{display:flex;gap:4px;overflow-x:auto;padding-bottom:2px}
+.cell{flex:0 0 auto;min-width:46px;text-align:center;font-size:11px;padding:4px 2px;border:1px solid var(--bd);border-radius:6px;background:transparent;color:var(--mu);font-weight:400}
+.cell.done{background:var(--ok);border-color:var(--ok);color:#fff}.cell.now{outline:2px solid var(--ac)}
+.cell:disabled{opacity:.5}
+.tip{color:var(--mu);font-size:12px;margin:10px 0 0}
+.modal{position:fixed;inset:0;background:#0a1b2bc9;display:none;place-items:center;padding:20px;z-index:10}
+.modal.open{display:grid}
+.panel{background:var(--card);border-radius:14px;width:min(680px,100%);max-height:90vh;overflow:auto;padding:24px}
+.panel h2{margin:0 0 8px}.panel p,.panel li{color:var(--mu)}
+.note{background:#eef7f6;color:#17323a;border-left:4px solid var(--ok);padding:10px 12px;border-radius:5px}
+.field{margin-top:12px}.field label{display:block;font-weight:700;margin-bottom:4px}
+.field input{width:100%;border:1px solid var(--bd);background:var(--bg);color:var(--tx);border-radius:8px;padding:9px 10px}
+.error{background:#fff0ef;color:#9c3732;padding:10px;border-radius:7px;display:none;margin-top:12px}
+code{background:#eef2f5;color:#182431;padding:2px 5px;border-radius:4px;word-break:break-all}
+@media(max-width:640px){.task{grid-template-columns:1fr 80px}.cells{grid-column:1/-1}}
+</style></head><body>
+<header><div class="top">
+  <div><h1>Finance & Administration / HR</h1><p>Q4 2026 to-do tracker</p></div>
+  <div class="actions">
+    <label class="btn ghost" for="imp">&#128194; Import Excel</label><input type="file" id="imp" accept=".xlsx,.xls" hidden>
+    <button class="ghost" id="setupBtn">Connection setup</button>
+    <button class="primary" id="refreshBtn">Connect &amp; refresh</button>
+  </div>
+</div></header>
+<main>
+  <div class="card statusbar"><span class="dot" id="statusDot"></span><span id="sourceText">Preview with built-in sample data</span><button class="light" id="signOutBtn" hidden>Sign out</button></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="card"><div class="tabs" id="tabs"></div><div id="list"></div>
+  <p class="tip">Outlined box = current period. When connected, clicking a box writes "Done" (or clears it) in the workbook.</p></div>
+</main>
+
+<div class="modal" id="modal"><div class="panel">
+  <h2>Live OneDrive connection</h2>
+  <p>This page reads and writes the <code>Sheet1</code> worksheet of your workbook through Microsoft Graph.</p>
+  <div class="note"><b>One-time setup:</b> register a Single-page application in the
+    <a href="https://entra.microsoft.com" target="_blank" rel="noopener">Entra admin center</a>
+    (Supported account types: <b>Personal Microsoft accounts only</b>), add the hosted page URL as a SPA redirect URI, and allow delegated
+    <code>Files.ReadWrite</code>. No client secret is used.</div>
+  <ol><li>Host this HTML on an HTTPS website.</li><li>Add its URL as the SPA redirect URI.</li><li>Create a OneDrive sharing link for the workbook (Share &rarr; Copy link).</li></ol>
+  <div class="field"><label>Application (client) ID</label><input id="clientId" placeholder="00000000-0000-0000-0000-000000000000"></div>
+  <div class="field"><label>Workbook OneDrive sharing link</label><input id="shareUrl" placeholder="https://1drv.ms/x/s/..."></div>
+  <div class="field"><label>Redirect URI to register</label><input id="redirectShow" readonly></div>
+  <div class="error" id="error"></div>
+  <div class="actions" style="margin-top:16px"><button class="primary" id="saveConnect">Save &amp; connect</button><button class="light" id="closeModal">Close</button></div>
+</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// Personal Microsoft accounts. For work/school accounts use "common" and a multi-tenant app registration.
+const AUTHORITY="https://login.microsoftonline.com/consumers";
+const SHEET_NAME="Sheet1";   // worksheet tab name in your workbook
+const SCOPE="openid profile offline_access Files.ReadWrite";
+const $=s=>document.querySelector(s);
+
+// ---------- Sample data (shown until connected) ----------
+const TODAY=new Date();
+const weeks=[];["40","41","42","43","44","45","46","47","48","49","50","51","52","53","01"].forEach((w,i)=>{
+  weeks.push({k:"w"+w,l:"Wk "+w,s:new Date(2026,8,28+7*i),e:new Date(2026,8,28+7*i+6)})});
+const days=[];for(let i=0;i<14;i++){const d=new Date(2026,9,12+i);days.push({k:"d"+(i+12),l:(d.getMonth()+1)+"/"+d.getDate(),s:d,e:d})}
+const months=[["Oct",9,31],["Nov",10,30],["Dec",11,31]].map(([k,m,n])=>({k,l:k,s:new Date(2026,m,1),e:new Date(2026,m,n)}));
+const per={Daily:days,Weekly:weeks,"Bi-weekly":weeks.filter((_,i)=>i%2==0),Monthly:months,"As required":months};
+const T=(s,f,n)=>({s,f,n});
+let tasks=[
+...["Finalize bank reconciliations","Credit card reconciliations","Summarize WCC","Record inventory","Record prepaid expenses/insurance","Complete month end spreadsheet","Review financial numbers (monthly and year-to-date)","Budget vs actuals reporting","Cross check QB vs ERP numbers","Bank Reports (by the 25th)"].map(n=>T("Finance & Admin","Monthly",n)),
+...["Review bank balances","Record bank deposits","Approve check/EFT runs"].map(n=>T("Finance & Admin","Daily",n)),
+...["Review AR/AP","Bank reconciliations","L10 Meetings"].map(n=>T("Finance & Admin","Weekly",n)),
+...["Payroll","RRSP Deductions","Payroll Remittance"].map(n=>T("Finance & Admin","Bi-weekly",n)),
+...["Job ads","HR complaints","Support managers with issues","Sunlife insurance enrollment","RRSP enrollment","Onboard new employees","Assist in interviews","Track holidays, time off and sick days","Post birthdays and anniversaries","Coordinate monthly birthday celebrations","Company communications"].map(n=>T("Human Resources","As required",n))];
+tasks.forEach((t,i)=>t.id="t"+i);
+let state={},live=false,tab="All";
+const sections=["All","Finance & Admin","Human Resources"];
+
+// ---------- Sheet parsing (shared by Graph refresh and file import) ----------
+//#parse
+const FQ={"daily":"Daily","weekly":"Weekly","bi-weekly":"Bi-weekly","biweekly":"Bi-weekly","monthly":"Monthly","as required":"As required"};
+function pkey(x){
+  if(typeof x==="number"&&x>40000){const d=new Date(Date.UTC(1899,11,30)+x*864e5);return d.getUTCMonth()==9?"d"+d.getUTCDate():null}
+  const s=String(x==null?"":x).trim();
+  if(/^(Oct|Nov|Dec)$/.test(s))return s;
+  const m=s.match(/^Week (\d+)/);return m?"w"+m[1]:null;
+}
+function colLetter(c){let s="";c++;while(c>0){const m=(c-1)%26;s=String.fromCharCode(65+m)+s;c=Math.floor((c-1)/26)}return s}
+// rows[0] must be sheet row 1 and rows[r][0] must be column A.
+function parseSheet(rows){
+  const out=[],marks=[];let sec="Finance & Admin",hdr=[];
+  rows.forEach((r,i)=>{
+    const b=String(r[1]==null?"":r[1]).trim(),h=String(r[7]==null?"":r[7]).trim(),rest=r.slice(8);
+    if(/^(finance|human)/i.test(b)){sec=/human/i.test(b)?"Human Resources":"Finance & Admin";if(rest.some(v=>v!==""&&v!=null))hdr=rest;return}
+    const f=FQ[h.toLowerCase()];if(!b||!f)return;
+    const id="t"+out.length,cols={};
+    rest.forEach((v,j)=>{const k=pkey(hdr[j]);if(!k)return;cols[k]=j+8;if(v!==""&&v!=null)marks.push(id+":"+k)});
+    out.push({id,s:sec,f,n:b,row:i+1,cols});
+  });
+  return{out,marks};
+}
+// Graph returns usedRange starting at its top-left cell (e.g. B1); pad so indexes match sheet coordinates.
+function padRange(address,values){
+  const m=address.match(/!\$?([A-Z]+)\$?(\d+)/);
+  const c0=m[1].split("").reduce((a,ch)=>a*26+ch.charCodeAt(0)-64,0)-1,r0=+m[2]-1;
+  return Array.from({length:r0},()=>[]).concat(values.map(r=>Array(c0).fill("").concat(r)));
+}
+//#endparse
+function applyData(out,marks){tasks=out;state={};marks.forEach(k=>state[k]=1)}
+
+// ---------- Auth (OAuth code + PKCE, no client secret) ----------
+function getConfig(){try{return JSON.parse(localStorage.getItem("faDashConfig"))||{}}catch{return{}}}
+function redirectUri(){return location.protocol==="file:"?"":location.origin+location.pathname}
+function randomString(n=48){const b=new Uint8Array(n);crypto.getRandomValues(b);return[...b].map(v=>(v%36).toString(36)).join("")}
+function base64Url(bytes){let v="";bytes.forEach(b=>v+=String.fromCharCode(b));return btoa(v).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_")}
+async function createChallenge(v){return base64Url(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v))))}
+function createShareToken(url){return"u!"+base64Url(new TextEncoder().encode(url))}
+function getToken(){try{const v=JSON.parse(sessionStorage.getItem("faDashToken"));if(v&&Date.now()<v.expires_at-60000)return v}catch{}return null}
+
+async function login(){
+  const c=getConfig();
+  if(!c.clientId||!c.shareUrl){openSetup("Complete both connection fields first.");return}
+  if(!redirectUri()){openSetup("Host this HTML on an HTTP or HTTPS address before signing in.");return}
+  const verifier=randomString(64),st=randomString(24);
+  sessionStorage.setItem("pkceVerifier",verifier);sessionStorage.setItem("oauthState",st);
+  location.href=AUTHORITY+"/oauth2/v2.0/authorize?"+new URLSearchParams({client_id:c.clientId,response_type:"code",redirect_uri:redirectUri(),response_mode:"query",scope:SCOPE,state:st,code_challenge:await createChallenge(verifier),code_challenge_method:"S256"});
+}
+async function redeemAuthorizationCode(){
+  const q=new URLSearchParams(location.search);
+  if(q.get("error"))throw new Error(q.get("error_description")||q.get("error"));
+  const code=q.get("code");if(!code)return false;
+  if(q.get("state")!==sessionStorage.getItem("oauthState"))throw new Error("The sign-in state did not match. Please try again.");
+  const r=await fetch(AUTHORITY+"/oauth2/v2.0/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({client_id:getConfig().clientId,grant_type:"authorization_code",code,redirect_uri:redirectUri(),code_verifier:sessionStorage.getItem("pkceVerifier"),scope:SCOPE})});
+  const res=await r.json();
+  if(!r.ok)throw new Error(res.error_description||"Token request failed.");
+  res.expires_at=Date.now()+res.expires_in*1000;
+  sessionStorage.setItem("faDashToken",JSON.stringify(res));
+  history.replaceState({},document.title,redirectUri());
+  return true;
+}
+
+// ---------- Microsoft Graph ----------
+let driveId=null,itemId=null;
+async function graph(url){
+  const t=getToken();if(!t){await login();return null}
+  const r=await fetch(url,{headers:{Authorization:"Bearer "+t.access_token}});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||"Microsoft Graph returned status "+r.status)}
+  return r.json();
+}
+async function writeRange(address,value){
+  const t=getToken();if(!t)throw new Error("Not signed in.");
+  if(!driveId||!itemId)throw new Error("No workbook is connected yet.");
+  const r=await fetch("https://graph.microsoft.com/v1.0/drives/"+encodeURIComponent(driveId)+"/items/"+encodeURIComponent(itemId)+"/workbook/worksheets/"+encodeURIComponent(SHEET_NAME)+"/range(address='"+address+"')",
+    {method:"PATCH",headers:{Authorization:"Bearer "+t.access_token,"Content-Type":"application/json"},body:JSON.stringify({values:[[value]]})});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||"Write failed: "+r.status)}
+  return r.json();
+}
+async function refreshDashboard(){
+  try{
+    setSource("Connecting…",false);
+    if(!getToken()){await login();return}
+    const item=await graph("https://graph.microsoft.com/v1.0/shares/"+createShareToken(getConfig().shareUrl)+"/driveItem?$select=id,name,parentReference");
+    if(!item)return;
+    driveId=item.parentReference?.driveId;
+    if(!driveId)throw new Error("The sharing link did not resolve to a OneDrive drive.");
+    itemId=item.id;
+    const range=await graph("https://graph.microsoft.com/v1.0/drives/"+encodeURIComponent(driveId)+"/items/"+encodeURIComponent(itemId)+"/workbook/worksheets/"+encodeURIComponent(SHEET_NAME)+"/usedRange(valuesOnly=true)?$select=address,values");
+    const {out,marks}=parseSheet(padRange(range.address,range.values));
+    if(!out.length)throw new Error("No tasks found on worksheet \""+SHEET_NAME+"\".");
+    applyData(out,marks);live=true;render();
+    setSource("Live • "+item.name+" • refreshed "+new Date().toLocaleString(),true);
+    $("#signOutBtn").hidden=false;
+  }catch(err){setSource("Live refresh failed",false);openSetup(err.message)}
+}
+function setSource(m,l){$("#sourceText").textContent=m;$("#statusDot").classList.toggle("live",l)}
+
+// ---------- Rendering ----------
+const isNow=p=>TODAY>=p.s&&TODAY<=new Date(p.e.getFullYear(),p.e.getMonth(),p.e.getDate(),23,59);
+const esc=v=>String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function render(){
+  const vis=tasks.filter(t=>tab=="All"||t.s==tab);
+  let tot=0,done=0;
+  tasks.forEach(t=>per[t.f].forEach(p=>{tot++;if(state[t.id+":"+p.k])done++}));
+  const pct=tot?Math.round(done/tot*100):0;
+  $("#kpis").innerHTML=
+   `<div class="card kpi"><b>${tasks.length}</b><span>Recurring tasks</span></div>
+    <div class="card kpi"><b>${done}/${tot}</b><span>Check-offs complete</span><div class="bar"><i style="width:${pct}%"></i></div></div>
+    <div class="card kpi"><b>${tasks.filter(t=>t.s=="Finance & Admin").length}</b><span>Finance & Admin</span></div>
+    <div class="card kpi"><b>${tasks.filter(t=>t.s=="Human Resources").length}</b><span>Human Resources</span></div>`;
+  $("#tabs").innerHTML=sections.map(s=>`<button class="${s==tab?"on":""}" data-tab="${esc(s)}">${s}</button>`).join("");
+  $("#list").innerHTML=vis.map(t=>`<div class="task"><div>${esc(t.n)}</div><div class="chip">${t.f}</div><div class="cells">${
+    per[t.f].map(p=>`<button class="cell ${state[t.id+":"+p.k]?"done":""} ${isNow(p)?"now":""}" data-k="${t.id}:${p.k}">${p.l}</button>`).join("")}</div></div>`).join("");
+}
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("[data-tab]");if(b){tab=b.dataset.tab;render();return}
+  const c=e.target.closest("[data-k]");if(!c)return;
+  const k=c.dataset.k;
+  if(!live){state[k]?delete state[k]:state[k]=1;render();return}
+  const [id,pk]=k.split(":"),t=tasks.find(x=>x.id==id),col=t&&t.cols&&t.cols[pk];
+  if(!col){alert("This period has no matching column in the worksheet.");return}
+  c.disabled=true;
+  try{await writeRange(colLetter(col)+t.row,state[k]?"":"Done");await refreshDashboard()}
+  catch(err){alert("Could not save: "+err.message);c.disabled=false}
+});
+
+// ---------- Setup modal & buttons ----------
+function openSetup(msg=""){
+  const c=getConfig();
+  $("#clientId").value=c.clientId||"";$("#shareUrl").value=c.shareUrl||"";
+  $("#redirectShow").value=redirectUri()||"Host on HTTPS to generate a redirect URI";
+  $("#error").textContent=msg;$("#error").style.display=msg?"block":"none";
+  $("#modal").classList.add("open");
+}
+$("#setupBtn").onclick=()=>openSetup();
+$("#closeModal").onclick=()=>$("#modal").classList.remove("open");
+$("#saveConnect").onclick=()=>{
+  localStorage.setItem("faDashConfig",JSON.stringify({clientId:$("#clientId").value.trim(),shareUrl:$("#shareUrl").value.trim()}));
+  $("#modal").classList.remove("open");refreshDashboard();
+};
+$("#refreshBtn").onclick=refreshDashboard;
+$("#signOutBtn").onclick=()=>{sessionStorage.clear();location.href=redirectUri()||location.href};
+// Offline fallback: import a local copy of the workbook (e.g. from your OneDrive sync folder)
+$("#imp").addEventListener("change",async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});
+    const ws=wb.Sheets[wb.SheetNames[0]],rg=XLSX.utils.decode_range(ws["!ref"]);rg.s.c=0;rg.s.r=0;ws["!ref"]=XLSX.utils.encode_range(rg);
+    const {out,marks}=parseSheet(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:""}));
+    if(!out.length)throw new Error("no tasks found in the first sheet");
+    applyData(out,marks);live=false;render();setSource("Imported "+f.name+" • "+out.length+" tasks (read-only copy, not synced)",false);
+  }catch(err){setSource("Import failed: "+err.message,false)}
+  e.target.value="";
+});
+
+// ---------- Startup ----------
+(async()=>{
+  render();
+  try{
+    if(await redeemAuthorizationCode())await refreshDashboard();
+    else if(getToken())await refreshDashboard();
+    else if(!getConfig().clientId)setTimeout(()=>openSetup(),350);
+  }catch(err){openSetup(err.message)}
+})();
+</script></body></html>
