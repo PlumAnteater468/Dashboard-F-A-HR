@@ -9,13 +9,14 @@
 body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 "Segoe UI",Arial,sans-serif}
 button,input{font:inherit}
 header{background:linear-gradient(125deg,var(--navy),#174b68);color:#fff;padding:26px clamp(18px,4vw,54px) 34px}
-.top{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.top{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:center}
 h1{margin:0;font-size:clamp(22px,3vw,34px)}header p{margin:4px 0 0;color:#d9e8f1}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 button,.btn{border:0;border-radius:8px;padding:9px 13px;cursor:pointer;font-weight:650}
 .primary{background:var(--ok);color:#fff}.ghost{background:#ffffff1c;color:#fff;border:1px solid #ffffff44}
+a.btn{text-decoration:none;display:inline-block}
 .light{background:#edf3f7;color:var(--navy)}
-main{max-width:1450px;margin:-18px auto 40px;padding:0 20px}
+main{max-width:1100px;margin:-18px auto 40px;padding:0 20px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;box-shadow:0 4px 15px #17334d0b}
 .statusbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;padding:10px 14px}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--gold)}.dot.live{background:var(--ok)}
@@ -48,7 +49,7 @@ code{background:#eef2f5;color:#182431;padding:2px 5px;border-radius:4px;word-bre
 <header><div class="top">
   <div><h1>Finance & Administration / HR</h1><p>Q4 2026 to-do tracker</p></div>
   <div class="actions">
-    <label class="btn ghost" for="imp">&#128194; Import Excel</label><input type="file" id="imp" accept=".xlsx,.xls" hidden>
+    <a class="btn ghost" id="annualLink" href="Annual_Review_Plan_Dashboard.html">Annual Review Plan &rarr;</a>
     <button class="ghost" id="setupBtn">Connection setup</button>
     <button class="primary" id="refreshBtn">Connect &amp; refresh</button>
   </div>
@@ -75,7 +76,6 @@ code{background:#eef2f5;color:#182431;padding:2px 5px;border-radius:4px;word-bre
   <div class="actions" style="margin-top:16px"><button class="primary" id="saveConnect">Save &amp; connect</button><button class="light" id="closeModal">Close</button></div>
 </div></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // Personal Microsoft accounts. For work/school accounts use "common" and a multi-tenant app registration.
 const AUTHORITY="https://login.microsoftonline.com/consumers";
@@ -245,19 +245,6 @@ $("#saveConnect").onclick=()=>{
 };
 $("#refreshBtn").onclick=refreshDashboard;
 $("#signOutBtn").onclick=()=>{sessionStorage.clear();location.href=redirectUri()||location.href};
-// Offline fallback: import a local copy of the workbook (e.g. from your OneDrive sync folder)
-$("#imp").addEventListener("change",async e=>{
-  const f=e.target.files[0];if(!f)return;
-  try{
-    const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});
-    const ws=wb.Sheets[wb.SheetNames[0]],rg=XLSX.utils.decode_range(ws["!ref"]);rg.s.c=0;rg.s.r=0;ws["!ref"]=XLSX.utils.encode_range(rg);
-    const {out,marks}=parseSheet(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:""}));
-    if(!out.length)throw new Error("no tasks found in the first sheet");
-    applyData(out,marks);live=false;render();setSource("Imported "+f.name+" • "+out.length+" tasks (read-only copy, not synced)",false);
-  }catch(err){setSource("Import failed: "+err.message,false)}
-  e.target.value="";
-});
-
 // ---------- Startup ----------
 (async()=>{
   render();
