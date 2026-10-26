@@ -57,7 +57,7 @@ code{background:#eef2f5;color:#182431;padding:2px 5px;border-radius:4px;word-bre
 <main>
   <div class="card statusbar"><span class="dot" id="statusDot"></span><span id="sourceText">Preview with built-in sample data</span><button class="light" id="signOutBtn" hidden>Sign out</button></div>
   <div class="kpis" id="kpis"></div>
-  <div class="card"><div class="tabs" id="tabs"></div><div id="list"></div>
+  <div class="card"><div class="tabs" id="tabs"></div><div class="tabs" id="freqTabs"></div><div id="list"></div>
   <p class="tip">Outlined box = current period. When connected, clicking a box writes "Done" (or clears it) in the workbook.</p></div>
 </main>
 
@@ -101,6 +101,8 @@ let tasks=[
 tasks.forEach((t,i)=>t.id="t"+i);
 let state={},live=false,tab="All",scrollPos={};
 const sections=["All","Finance & Admin","Human Resources"];
+const freqs=["All","Monthly","Weekly","Bi-weekly","Daily","As required"];
+let freq="All";
 
 // ---------- Sheet parsing (shared by Graph refresh and file import) ----------
 //#parse
@@ -206,7 +208,7 @@ function setSource(m,l){$("#sourceText").textContent=m;$("#statusDot").classList
 const isNow=p=>TODAY>=p.s&&TODAY<=new Date(p.e.getFullYear(),p.e.getMonth(),p.e.getDate(),23,59);
 const esc=v=>String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function render(){
-  const vis=tasks.filter(t=>tab=="All"||t.s==tab);
+  const vis=tasks.filter(t=>(tab=="All"||t.s==tab)&&(freq=="All"||t.f==freq));
   let tot=0,done=0;
   tasks.forEach(t=>per[t.f].forEach(p=>{tot++;if(state[t.id+":"+p.k])done++}));
   const pct=tot?Math.round(done/tot*100):0;
@@ -216,6 +218,7 @@ function render(){
     <div class="card kpi"><b>${tasks.filter(t=>t.s=="Finance & Admin").length}</b><span>Finance & Admin</span></div>
     <div class="card kpi"><b>${tasks.filter(t=>t.s=="Human Resources").length}</b><span>Human Resources</span></div>`;
   $("#tabs").innerHTML=sections.map(s=>`<button class="${s==tab?"on":""}" data-tab="${esc(s)}">${s}</button>`).join("");
+  $("#freqTabs").innerHTML=freqs.map(f=>`<button class="${f==freq?"on":""}" data-freq="${f}">${f}</button>`).join("");
   document.querySelectorAll(".cells").forEach(e=>scrollPos[e.dataset.id]=e.scrollLeft);
   $("#list").innerHTML=vis.map(t=>`<div class="task"><div>${esc(t.n)}</div><div class="chip">${t.f}</div><div class="cells" data-id="${t.id}">${
     per[t.f].map(p=>`<button class="cell ${state[t.id+":"+p.k]?"done":""} ${isNow(p)?"now":""}" data-k="${t.id}:${p.k}">${p.l}</button>`).join("")}</div></div>`).join("");
@@ -228,6 +231,7 @@ function render(){
 }
 document.addEventListener("click",async e=>{
   const b=e.target.closest("[data-tab]");if(b){tab=b.dataset.tab;render();return}
+  const fb=e.target.closest("[data-freq]");if(fb){freq=fb.dataset.freq;render();return}
   const c=e.target.closest("[data-k]");if(!c)return;
   const k=c.dataset.k;
   if(!live){state[k]?delete state[k]:state[k]=1;render();return}
