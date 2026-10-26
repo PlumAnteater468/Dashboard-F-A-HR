@@ -9,14 +9,14 @@
 body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 "Segoe UI",Arial,sans-serif}
 button,input{font:inherit}
 header{background:linear-gradient(125deg,var(--navy),#174b68);color:#fff;padding:26px clamp(18px,4vw,54px) 34px}
-.top{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.top{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:center}
 h1{margin:0;font-size:clamp(22px,3vw,34px)}header p{margin:4px 0 0;color:#d9e8f1}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 button,.btn{border:0;border-radius:8px;padding:9px 13px;cursor:pointer;font-weight:650}
 .primary{background:var(--ok);color:#fff}.ghost{background:#ffffff1c;color:#fff;border:1px solid #ffffff44}
 a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .light{background:#edf3f7;color:var(--navy)}
-main{max-width:1450px;margin:-18px auto 40px;padding:0 20px}
+main{max-width:1100px;margin:-18px auto 40px;padding:0 20px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;box-shadow:0 4px 15px #17334d0b}
 .statusbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;padding:10px 14px}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--gold)}.dot.live{background:var(--ok)}
@@ -49,7 +49,7 @@ code{background:#eef2f5;color:#182431;padding:2px 5px;border-radius:4px;word-bre
 <header><div class="top">
   <div><h1>Finance & Administration / HR</h1><p>Q4 2026 to-do tracker</p></div>
   <div class="actions">
-    <a class="btn ghost" id="annualLink" href="https://plumanteater468.github.io/Dashboard/">Annual Review Plan</a>
+    <a class="btn ghost" id="annualLink" href="Annual_Review_Plan_Dashboard.html">Annual Review Plan &rarr;</a>
     <button class="ghost" id="setupBtn">Connection setup</button>
     <button class="primary" id="refreshBtn">Connect &amp; refresh</button>
   </div>
@@ -87,7 +87,8 @@ const $=s=>document.querySelector(s);
 const TODAY=new Date();
 const weeks=[];["40","41","42","43","44","45","46","47","48","49","50","51","52","53","01"].forEach((w,i)=>{
   weeks.push({k:"w"+w,l:"Wk "+w,s:new Date(2026,8,28+7*i),e:new Date(2026,8,28+7*i+6)})});
-const days=[];for(let i=0;i<14;i++){const d=new Date(2026,9,12+i);days.push({k:"d"+(i+12),l:(d.getMonth()+1)+"/"+d.getDate(),s:d,e:d})}
+function dayFromSerial(n){const u=new Date(Date.UTC(1899,11,30)+n*864e5),d=new Date(u.getUTCFullYear(),u.getUTCMonth(),u.getUTCDate());return{k:"d"+n,l:(d.getMonth()+1)+"/"+d.getDate(),s:d,e:d}}
+const days=[];for(let i=0;i<14;i++)days.push(dayFromSerial(46307+i)); // sample only: Oct 12-25
 const months=[["Oct",9,31],["Nov",10,30],["Dec",11,31]].map(([k,m,n])=>({k,l:k,s:new Date(2026,m,1),e:new Date(2026,m,n)}));
 const per={Daily:days,Weekly:weeks,"Bi-weekly":weeks.filter((_,i)=>i%2==0),Monthly:months,"As required":months};
 const T=(s,f,n)=>({s,f,n});
@@ -98,14 +99,14 @@ let tasks=[
 ...["Payroll","RRSP Deductions","Payroll Remittance"].map(n=>T("Finance & Admin","Bi-weekly",n)),
 ...["Job ads","HR complaints","Support managers with issues","Sunlife insurance enrollment","RRSP enrollment","Onboard new employees","Assist in interviews","Track holidays, time off and sick days","Post birthdays and anniversaries","Coordinate monthly birthday celebrations","Company communications"].map(n=>T("Human Resources","As required",n))];
 tasks.forEach((t,i)=>t.id="t"+i);
-let state={},live=false,tab="All";
+let state={},live=false,tab="All",scrollPos={};
 const sections=["All","Finance & Admin","Human Resources"];
 
 // ---------- Sheet parsing (shared by Graph refresh and file import) ----------
 //#parse
 const FQ={"daily":"Daily","weekly":"Weekly","bi-weekly":"Bi-weekly","biweekly":"Bi-weekly","monthly":"Monthly","as required":"As required"};
 function pkey(x){
-  if(typeof x==="number"&&x>40000){const d=new Date(Date.UTC(1899,11,30)+x*864e5);return d.getUTCMonth()==9?"d"+d.getUTCDate():null}
+  if(typeof x==="number"&&x>40000)return"d"+Math.floor(x);
   const s=String(x==null?"":x).trim();
   if(/^(Oct|Nov|Dec)$/.test(s))return s;
   const m=s.match(/^Week (\d+)/);return m?"w"+m[1]:null;
@@ -113,16 +114,17 @@ function pkey(x){
 function colLetter(c){let s="";c++;while(c>0){const m=(c-1)%26;s=String.fromCharCode(65+m)+s;c=Math.floor((c-1)/26)}return s}
 // rows[0] must be sheet row 1 and rows[r][0] must be column A.
 function parseSheet(rows){
-  const out=[],marks=[];let sec="Finance & Admin",hdr=[];
+  const out=[],marks=[],dset=new Set();let sec="Finance & Admin",hdr=[];
   rows.forEach((r,i)=>{
     const b=String(r[1]==null?"":r[1]).trim(),h=String(r[7]==null?"":r[7]).trim(),rest=r.slice(8);
     if(/^(finance|human)/i.test(b)){sec=/human/i.test(b)?"Human Resources":"Finance & Admin";if(rest.some(v=>v!==""&&v!=null))hdr=rest;return}
     const f=FQ[h.toLowerCase()];if(!b||!f)return;
     const id="t"+out.length,cols={};
+    if(f==="Daily")hdr.forEach(v=>{if(typeof v==="number"&&v>40000)dset.add(Math.floor(v))});
     rest.forEach((v,j)=>{const k=pkey(hdr[j]);if(!k)return;cols[k]=j+8;if(v!==""&&v!=null)marks.push(id+":"+k)});
     out.push({id,s:sec,f,n:b,row:i+1,cols});
   });
-  return{out,marks};
+  return{out,marks,days:[...dset].sort((a,b)=>a-b)};
 }
 // Graph returns usedRange starting at its top-left cell (e.g. B1); pad so indexes match sheet coordinates.
 function padRange(address,values){
@@ -131,7 +133,7 @@ function padRange(address,values){
   return Array.from({length:r0},()=>[]).concat(values.map(r=>Array(c0).fill("").concat(r)));
 }
 //#endparse
-function applyData(out,marks){tasks=out;state={};marks.forEach(k=>state[k]=1)}
+function applyData(out,marks,dayList){tasks=out;state={};marks.forEach(k=>state[k]=1);if(dayList&&dayList.length)per.Daily=dayList.map(dayFromSerial);scrollPos={}}
 
 // ---------- Auth (OAuth code + PKCE, no client secret) ----------
 function getConfig(){try{return JSON.parse(localStorage.getItem("faDashConfig"))||{}}catch{return{}}}
@@ -191,9 +193,9 @@ async function refreshDashboard(){
     if(!driveId)throw new Error("The sharing link did not resolve to a OneDrive drive.");
     itemId=item.id;
     const range=await graph("https://graph.microsoft.com/v1.0/drives/"+encodeURIComponent(driveId)+"/items/"+encodeURIComponent(itemId)+"/workbook/worksheets/"+encodeURIComponent(SHEET_NAME)+"/usedRange(valuesOnly=true)?$select=address,values");
-    const {out,marks}=parseSheet(padRange(range.address,range.values));
+    const {out,marks,days:dayList}=parseSheet(padRange(range.address,range.values));
     if(!out.length)throw new Error("No tasks found on worksheet \""+SHEET_NAME+"\".");
-    applyData(out,marks);live=true;render();
+    applyData(out,marks,dayList);live=true;render();
     setSource("Live • "+item.name+" • refreshed "+new Date().toLocaleString(),true);
     $("#signOutBtn").hidden=false;
   }catch(err){setSource("Live refresh failed",false);openSetup(err.message)}
@@ -214,8 +216,15 @@ function render(){
     <div class="card kpi"><b>${tasks.filter(t=>t.s=="Finance & Admin").length}</b><span>Finance & Admin</span></div>
     <div class="card kpi"><b>${tasks.filter(t=>t.s=="Human Resources").length}</b><span>Human Resources</span></div>`;
   $("#tabs").innerHTML=sections.map(s=>`<button class="${s==tab?"on":""}" data-tab="${esc(s)}">${s}</button>`).join("");
-  $("#list").innerHTML=vis.map(t=>`<div class="task"><div>${esc(t.n)}</div><div class="chip">${t.f}</div><div class="cells">${
+  document.querySelectorAll(".cells").forEach(e=>scrollPos[e.dataset.id]=e.scrollLeft);
+  $("#list").innerHTML=vis.map(t=>`<div class="task"><div>${esc(t.n)}</div><div class="chip">${t.f}</div><div class="cells" data-id="${t.id}">${
     per[t.f].map(p=>`<button class="cell ${state[t.id+":"+p.k]?"done":""} ${isNow(p)?"now":""}" data-k="${t.id}:${p.k}">${p.l}</button>`).join("")}</div></div>`).join("");
+  document.querySelectorAll(".cells").forEach(e=>{
+    const id=e.dataset.id;
+    if(id in scrollPos){e.scrollLeft=scrollPos[id];return}
+    const n=e.querySelector(".cell.now");
+    if(n)e.scrollLeft=Math.max(0,n.getBoundingClientRect().left-e.getBoundingClientRect().left+e.scrollLeft-60);
+  });
 }
 document.addEventListener("click",async e=>{
   const b=e.target.closest("[data-tab]");if(b){tab=b.dataset.tab;render();return}
