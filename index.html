@@ -11,6 +11,8 @@ button,input{font:inherit}
 header{background:linear-gradient(125deg,var(--navy),#174b68);color:#fff;padding:26px clamp(18px,4vw,54px) 34px}
 .top{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
 h1{margin:0;font-size:clamp(24px,3vw,38px)}header p{margin:4px 0 0;color:#d9e8f1}
+.brand{display:flex;align-items:center;gap:14px}
+.logo{height:clamp(56px,6vw,80px);width:auto;border-radius:8px}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 button,.btn{border:0;border-radius:8px;padding:9px 13px;cursor:pointer;font-weight:650}
 .primary{background:var(--ok);color:#fff}.ghost{background:#ffffff1c;color:#fff;border:1px solid #ffffff44}
@@ -47,7 +49,10 @@ code{background:#eef2f5;color:#182431;padding:2px 5px;border-radius:4px;word-bre
 @media(max-width:640px){.task{grid-template-columns:1fr 80px}.cells{grid-column:1/-1}}
 </style></head><body>
 <header><div class="top">
-  <div><h1>Finance & Administration / HR</h1><p>Q4 2026 to-do tracker</p></div>
+  <div class="brand">
+    <img class="logo" src="favicon.png" alt="Logo">
+    <div><h1>Finance & Administration / HR</h1><p>Q4 2026 to-do tracker</p></div>
+  </div>
   <div class="actions">
     <a class="btn ghost" id="annualLink" href="https://plumanteater468.github.io/Dashboard/">Annual Review Plan</a>
     <button class="ghost" id="setupBtn">Connection setup</button>
@@ -102,7 +107,7 @@ tasks.forEach((t,i)=>t.id="t"+i);
 let state={},live=false,tab="All",scrollPos={};
 const sections=["All","Finance & Admin","Human Resources"];
 const freqs=["All","Monthly","Weekly","Bi-weekly","Daily","As required"];
-let freq="All";
+const freqSel=new Set();   // empty = show every frequency ("All")
 
 // ---------- Sheet parsing (shared by Graph refresh and file import) ----------
 //#parse
@@ -208,7 +213,7 @@ function setSource(m,l){$("#sourceText").textContent=m;$("#statusDot").classList
 const isNow=p=>TODAY>=p.s&&TODAY<=new Date(p.e.getFullYear(),p.e.getMonth(),p.e.getDate(),23,59);
 const esc=v=>String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function render(){
-  const vis=tasks.filter(t=>(tab=="All"||t.s==tab)&&(freq=="All"||t.f==freq));
+  const vis=tasks.filter(t=>(tab=="All"||t.s==tab)&&(!freqSel.size||freqSel.has(t.f)));
   let tot=0,done=0;
   tasks.forEach(t=>per[t.f].forEach(p=>{tot++;if(state[t.id+":"+p.k])done++}));
   const pct=tot?Math.round(done/tot*100):0;
@@ -218,7 +223,7 @@ function render(){
     <div class="card kpi"><b>${tasks.filter(t=>t.s=="Finance & Admin").length}</b><span>Finance & Admin</span></div>
     <div class="card kpi"><b>${tasks.filter(t=>t.s=="Human Resources").length}</b><span>Human Resources</span></div>`;
   $("#tabs").innerHTML=sections.map(s=>`<button class="${s==tab?"on":""}" data-tab="${esc(s)}">${s}</button>`).join("");
-  $("#freqTabs").innerHTML=freqs.map(f=>`<button class="${f==freq?"on":""}" data-freq="${f}">${f}</button>`).join("");
+  $("#freqTabs").innerHTML=freqs.map(f=>`<button class="${(f=="All"?!freqSel.size:freqSel.has(f))?"on":""}" data-freq="${f}">${f}</button>`).join("");
   document.querySelectorAll(".cells").forEach(e=>scrollPos[e.dataset.id]=e.scrollLeft);
   $("#list").innerHTML=vis.map(t=>`<div class="task"><div>${esc(t.n)}</div><div class="chip">${t.f}</div><div class="cells" data-id="${t.id}">${
     per[t.f].map(p=>`<button class="cell ${state[t.id+":"+p.k]?"done":""} ${isNow(p)?"now":""}" data-k="${t.id}:${p.k}">${p.l}</button>`).join("")}</div></div>`).join("");
@@ -231,7 +236,7 @@ function render(){
 }
 document.addEventListener("click",async e=>{
   const b=e.target.closest("[data-tab]");if(b){tab=b.dataset.tab;render();return}
-  const fb=e.target.closest("[data-freq]");if(fb){freq=fb.dataset.freq;render();return}
+  const fb=e.target.closest("[data-freq]");if(fb){const f=fb.dataset.freq;if(f=="All")freqSel.clear();else freqSel.has(f)?freqSel.delete(f):freqSel.add(f);render();return}
   const c=e.target.closest("[data-k]");if(!c)return;
   const k=c.dataset.k;
   if(!live){state[k]?delete state[k]:state[k]=1;render();return}
